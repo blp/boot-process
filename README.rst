@@ -164,11 +164,29 @@ The value is 16-bit little-endian numbers in hex, so this is 9, 6, 2,
   00000060  6d 00 78 00 36 00 34 00  2e 00 65 00 66 00 69 00  |m.x.6.4...e.f.i.|
   00000070  00 00 7f ff 04 00                                 |......          |
 
-The filename embedded in this is evidently in UTF-16LE.  In ASCII, it
-says ``\EFI\fedora\shimx64.efi``.  This refers to a file in the EFI
-system partition.  Since, as mentioned before, this is mounted at
-``/boot/efi``, we can look at this file and the rest of the
-directory::
+The filename embedded in this is in UCS-2LE.  In ASCII, it says
+``\EFI\fedora\shimx64.efi``.  This refers to a file in the EFI system
+partition.
+
+The ``efibootmgr`` program puts this together in a nicer way::
+
+  $ efibootmgr
+  BootCurrent: 0009
+  Timeout: 0 seconds
+  BootOrder: 0009,0006,0002,0003,0004,0005,0007,000A
+  Boot0000* Windows Boot Manager
+  Boot0001* debian
+  Boot0002* Diskette Drive
+  Boot0003* USB Storage Device
+  Boot0004* CD/DVD/CD-RW Drive
+  Boot0005* Onboard NIC
+  Boot0006* ubuntu
+  Boot0007* Linux Firmware Updater
+  Boot0009* Fedora
+  Boot000A* USB NIC
+
+Since, as mentioned before, this is mounted at ``/boot/efi``, we can
+look at this file and the rest of the directory::
 
   $ sudo ls /boot/efi/EFI/fedora -l
   total 15604
