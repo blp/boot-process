@@ -1046,3 +1046,106 @@ switch of root directories inside systemd's at PID 1 process:
 
 * The new systemd starts and initializes itself using the serialized
   state from <fd>.
+
+Runtime Systemd Initialization
+------------------------------
+
+The plot shows all of the next 40 units all beginning at the same
+time, meaning that none of them had any unsatisfied dependencies when
+``systemd`` restarted (or that their dependencies could be satisfied
+instantly).
+
+Slices
+~~~~~~
+
+Since the initrd is no longer mounted, at this point we no longer
+benefit from looking at what we extracted from it.  Now the systemd
+units come from the runtime file system.  We can list the directories
+that systemd searches for them with::
+
+  $ systemctl show -p UnitPath --value | tr ' ' '\n'
+  /etc/systemd/system.control
+  /run/systemd/system.control
+  /run/systemd/transient
+  /run/systemd/generator.early
+  /etc/systemd/system
+  /etc/systemd/system.attached
+  /run/systemd/system
+  /run/systemd/system.attached
+  /run/systemd/generator
+  /usr/local/lib/systemd/system
+  /usr/lib/systemd/system
+  /run/systemd/generator.late
+
+Only a fraction of these directories exist, though::
+
+  $ for d in $(systemctl show -p UnitPath --value); do if test -d $d; then echo $d; fi; done
+  /run/systemd/transient
+  /etc/systemd/system
+  /run/systemd/system
+  /run/systemd/generator
+  /usr/lib/systemd/system
+  /run/systemd/generator.late
+
+The first five units are slice units, followed a little bit later by
+the target that some of them mark themselves as ``Before``::
+
+  machine.slice
+  system-getty.slice
+  system-modprobe.slice
+  system-systemd-fsck.slice
+  user.slice
+  ⋮
+  slices.target
+
+Rather than looking around the file system for these units, it's
+easier to examine units with ``systemctl cat``, e.g.::
+
+  $ systemctl cat machine.slice
+  # /usr/lib/systemd/system/machine.slice
+  ⋮
+  [Unit]
+  Description=Virtual Machine and Container Slice
+  Documentation=man:systemd.special(7)
+  Before=slices.target
+
+Some of the above units are mysterious.  For example, I can't find
+``system-modprobe.slice`` anywhere. and ``systemctl cat`` doesn't know
+about it either, even though ``systemctl list`` shows it as loaded and
+active.  The same is true for ``system-getty.slice``.
+``system-systemd-fsck.slice`` doesn't even show up in ``systemctl
+list``.
+
+Password Prompting
+~~~~~~~~~~~~~~~~~~
+
+The next row is for ``systemd-ask-password-wall.path``.  Its
+corresponding service unit has::
+
+  ExecStart=systemd-tty-ask-password-agent --wall
+
+Frankly, wall(1) seems to me like a dreadful way to prompt for a
+password.  I hope this doesn't really get used much.  I've never
+noticed it in practice.
+
+No other password agent units are running, though, since the plymouth
+one terminated earlier, so I guess this is better than nothing.  Maybe
+the idea is that needing passwords after running the initrd is
+unusual, or that if something likely to need them comes up then maybe
+a better agent will be configured first.
+
+Automount
+~~~~~~~~~
+
+The next row is for ``proc-sys-fs-binfmt_misc.automount``.  This is a
+kind of systemd unit that is new to us, documented in
+systemd.automount(5).  When the mount point is first used, systemd
+invokes the corresponding ``proc-sys-fs-binfmt_misc.mount`` unit,
+which mounts the binfmt_misc filesystem on
+``/proc/sys/fs/binfmt_misc``.  I don't know why this is automounted
+instead of mounted proactively.  It's the only automount unit on my
+system.  When I checked, it was in fact mounted::
+
+  $ mount|grep binfmt
+  systemd-1 on /proc/sys/fs/binfmt_misc type autofs (rw,relatime,fd=30,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=293)
+  binfmt_misc on /proc/sys/fs/binfmt_misc type binfmt_misc (rw,nosuid,nodev,noexec,relatime)
