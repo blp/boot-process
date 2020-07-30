@@ -221,6 +221,23 @@ It's not really a Windows program, it's just in the Windows PE
 Windows-flavored.  If you run ``strings`` on the shim binary, you see
 a lot of OpenSSL references.  That is presumably the "Secure" part.
 
+The shim is not part of the Grub bootloader.  It is a separate program
+`shim <https://github.com/rhboot/shim/>` that runs before Grub and
+loads Grub.  The first paragraph from its own ``README.md`` is a good
+description:
+
+    shim is a trivial EFI application that, when run, attempts to open
+    and execute another application. It will initially attempt to do
+    this via the standard EFI LoadImage() and StartImage() calls. If
+    these fail (because Secure Boot is enabled and the binary is not
+    signed with an appropriate key, for instance) it will then
+    validate the binary against a built-in certificate. If this
+    succeeds and if the binary or signing key are not blacklisted then
+    shim will relocate and execute the binary.
+
+The shim is signed by Microsoft (!) through an onerous `process
+<https://blog.hansenpartnership.com/adventures-in-microsoft-uefi-signing/>`.
+
 Grub
 ----
 
